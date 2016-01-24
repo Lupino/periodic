@@ -35,7 +35,6 @@ func TestParseCommand(t *testing.T) {
 }
 
 func TestParseCommandPanic1(t *testing.T) {
-	defer testPanic()
 	var pack = []byte("100\x00\x01")
 	ParseCommand(pack)
 }
