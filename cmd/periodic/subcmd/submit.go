@@ -1,43 +1,19 @@
 package subcmd
 
 import (
-	"bytes"
-	"fmt"
+	"github.com/Lupino/go-periodic"
 	"github.com/Lupino/periodic/driver"
-	"github.com/Lupino/periodic/protocol"
 	"log"
-	"net"
-	"strings"
 )
 
 // SubmitJob cli submit
 func SubmitJob(entryPoint string, job driver.Job) {
-	parts := strings.SplitN(entryPoint, "://", 2)
-	c, err := net.Dial(parts[0], parts[1])
-	if err != nil {
+	c := periodic.NewClient()
+	if err := c.Connect(entryPoint); err != nil {
 		log.Fatal(err)
 	}
-	conn := protocol.NewClientConn(c)
-	defer conn.Close()
-	err = conn.Send(protocol.TYPECLIENT.Bytes())
-	if err != nil {
+	if err := c.SubmitJob(job); err != nil {
 		log.Fatal(err)
 	}
-	var msgID = []byte("100")
-	buf := bytes.NewBuffer(nil)
-	buf.Write(msgID)
-	buf.Write(protocol.NullChar)
-	buf.WriteByte(byte(protocol.SUBMITJOB))
-	buf.Write(protocol.NullChar)
-	buf.Write(job.Bytes())
-	err = conn.Send(buf.Bytes())
-	if err != nil {
-		log.Fatal(err)
-	}
-	payload, err := conn.Receive()
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, cmd, _ := protocol.ParseCommand(payload)
-	fmt.Printf("%s\n", cmd.String())
+	log.Printf("Submit Job[%s] success.\n", job.Name)
 }

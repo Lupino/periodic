@@ -2,133 +2,61 @@ package subcmd
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"github.com/Lupino/periodic/driver"
-	"github.com/Lupino/periodic/protocol"
-	"io"
+	"github.com/Lupino/go-periodic"
 	"log"
-	"net"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // Run cli run
-func Run(entryPoint, Func, cmd string) {
-	parts := strings.SplitN(entryPoint, "://", 2)
-	for {
-		c, err := net.Dial(parts[0], parts[1])
-		if err != nil {
-			if err != io.EOF {
-				log.Printf("Error: %s\n", err.Error())
-			}
-			log.Printf("Wait 5 second to reconnecting")
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		conn := protocol.NewClientConn(c)
-		err = handleWorker(conn, Func, cmd)
-		if err != nil {
-			if err != io.EOF {
-				log.Printf("Error: %s\n", err.Error())
-			}
-		}
-		conn.Close()
+func Run(entryPoint, funcName, cmd string) {
+	w := periodic.NewWorker()
+	if err := w.Connect(entryPoint); err != nil {
+		log.Fatalf("Error: %s\n", err.Error())
 	}
+	w.AddFunc(funcName, func(job periodic.Job) {
+		handleWorker(job, cmd)
+	})
+	w.Work()
 }
 
-func handleWorker(conn protocol.Conn, Func, cmd string) (err error) {
-	err = conn.Send(protocol.TYPEWORKER.Bytes())
-	if err != nil {
-		return
-	}
-	var msgID = []byte("100")
-	buf := bytes.NewBuffer(nil)
-	buf.Write(msgID)
-	buf.Write(protocol.NullChar)
-	buf.WriteByte(byte(protocol.CANDO))
-	buf.Write(protocol.NullChar)
-	buf.WriteString(Func)
-	err = conn.Send(buf.Bytes())
-	if err != nil {
-		return
-	}
-
-	var payload []byte
-	var job driver.Job
-	var jobHandle []byte
+func handleWorker(job periodic.Job, cmd string) {
+	var err error
+	realCmd := strings.Split(cmd, " ")
+	realCmd = append(realCmd, job.Name)
+	c := exec.Command(realCmd[0], realCmd[1:]...)
+	c.Stdin = strings.NewReader(job.Args)
+	var out bytes.Buffer
+	c.Stdout = &out
+	c.Stderr = os.Stderr
+	err = c.Run()
+	var schedLater int
+	var fail = false
+	var line string
 	for {
-		buf = bytes.NewBuffer(nil)
-		buf.Write(msgID)
-		buf.Write(protocol.NullChar)
-		buf.Write(protocol.GRABJOB.Bytes())
-		err = conn.Send(buf.Bytes())
+		line, err = out.ReadString([]byte("\n")[0])
 		if err != nil {
-			return
+			break
 		}
-		payload, err = conn.Receive()
-		if err != nil {
-			return
-		}
-		job, jobHandle, err = extraJob(payload)
-		realCmd := strings.Split(cmd, " ")
-		realCmd = append(realCmd, job.Name)
-		c := exec.Command(realCmd[0], realCmd[1:]...)
-		c.Stdin = strings.NewReader(job.Args)
-		var out bytes.Buffer
-		c.Stdout = &out
-		c.Stderr = os.Stderr
-		err = c.Run()
-		var schedLater int
-		var fail = false
-		for {
-			line, err := out.ReadString([]byte("\n")[0])
-			if err != nil {
-				break
-			}
-			if strings.HasPrefix(line, "SCHEDLATER") {
-				parts := strings.SplitN(line[:len(line)-1], " ", 2)
-				later := strings.Trim(parts[1], " ")
-				schedLater, _ = strconv.Atoi(later)
-			} else if strings.HasPrefix(line, "FAIL") {
-				fail = true
-			} else {
-				fmt.Print(line)
-			}
-		}
-		buf = bytes.NewBuffer(nil)
-		buf.Write(msgID)
-		buf.Write(protocol.NullChar)
-		if err != nil || fail {
-			buf.WriteByte(byte(protocol.WORKFAIL))
-		} else if schedLater > 0 {
-			buf.WriteByte(byte(protocol.SCHEDLATER))
+		if strings.HasPrefix(line, "SCHEDLATER") {
+			parts := strings.SplitN(line[:len(line)-1], " ", 2)
+			later := strings.Trim(parts[1], " ")
+			schedLater, _ = strconv.Atoi(later)
+		} else if strings.HasPrefix(line, "FAIL") {
+			fail = true
 		} else {
-			buf.WriteByte(byte(protocol.WORKDONE))
-		}
-		buf.Write(protocol.NullChar)
-		buf.Write(jobHandle)
-		if schedLater > 0 {
-			buf.Write(protocol.NullChar)
-			buf.WriteString(strconv.Itoa(schedLater))
-		}
-		err = conn.Send(buf.Bytes())
-		if err != nil {
-			return
+			fmt.Print(line)
 		}
 	}
-}
 
-func extraJob(payload []byte) (job driver.Job, jobHandle []byte, err error) {
-	parts := bytes.SplitN(payload, protocol.NullChar, 4)
-	if len(parts) != 4 {
-		err = errors.New("Invalid payload " + string(payload))
-		return
+	if err != nil || fail {
+		job.Fail()
+	} else if schedLater > 0 {
+		job.SchedLater(schedLater)
+	} else {
+		job.Done()
 	}
-	job, err = driver.NewJob(parts[3])
-	jobHandle = parts[2]
-	return
 }
