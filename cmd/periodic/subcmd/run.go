@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/Lupino/go-periodic"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -52,7 +53,7 @@ func handleWorker(job periodic.Job, cmd string) {
 		}
 	}
 
-	if err != nil || fail {
+	if (err != nil && err != io.EOF) || fail {
 		job.Fail()
 	} else if schedLater > 0 {
 		job.SchedLater(schedLater)
