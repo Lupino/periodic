@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"net"
+	"sync"
 )
 
 var (
@@ -20,11 +21,15 @@ type Conn struct {
 	net.Conn
 	RequestMagic  []byte
 	ResponseMagic []byte
+	wlocker       *sync.RWMutex
+	rlocker       *sync.RWMutex
 }
 
 // NewConn create a connection
 func NewConn(conn net.Conn, reqMagic, resMagic []byte) Conn {
-	return Conn{Conn: conn, RequestMagic: reqMagic, ResponseMagic: resMagic}
+	var wlocker = new(sync.RWMutex)
+	var rlocker = new(sync.RWMutex)
+	return Conn{Conn: conn, RequestMagic: reqMagic, ResponseMagic: resMagic, wlocker: wlocker, rlocker: rlocker}
 }
 
 // NewServerConn create a server connection
@@ -39,6 +44,8 @@ func NewClientConn(conn net.Conn) Conn {
 
 // Receive waits for a new message on conn, and receives its payload.
 func (conn *Conn) Receive() (rdata []byte, rerr error) {
+	conn.rlocker.RLock()
+	defer conn.rlocker.RUnlock()
 
 	// Read magic
 	magic, err := conn.receive(4)
@@ -78,6 +85,8 @@ func (conn *Conn) receive(length uint32) ([]byte, error) {
 
 // Send a new message.
 func (conn *Conn) Send(data []byte) error {
+	conn.wlocker.Lock()
+	defer conn.wlocker.Unlock()
 	header, err := MakeHeader(data)
 	if err != nil {
 		return err
