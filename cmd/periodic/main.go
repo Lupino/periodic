@@ -178,10 +178,16 @@ func main() {
 					Value: "",
 					Usage: "command required",
 				},
+				cli.IntFlag{
+					Name:  "n",
+					Value: runtime.NumCPU() * 2,
+					Usage: "the size of goroutines. (optional)",
+				},
 			},
 			Action: func(c *cli.Context) {
 				Func := c.String("f")
 				exec := c.String("exec")
+				n := c.Int("n")
 				if len(Func) == 0 {
 					cli.ShowCommandHelp(c, "run")
 					log.Fatal("function name is required")
@@ -190,7 +196,7 @@ func main() {
 					cli.ShowCommandHelp(c, "run")
 					log.Fatal("command is required")
 				}
-				subcmd.Run(c.GlobalString("H"), Func, exec)
+				subcmd.Run(c.GlobalString("H"), Func, exec, n)
 			},
 		},
 		{

@@ -13,8 +13,8 @@ import (
 )
 
 // Run cli run
-func Run(entryPoint, funcName, cmd string) {
-	w := periodic.NewWorker()
+func Run(entryPoint, funcName, cmd string, n int) {
+	w := periodic.NewWorker(n)
 	if err := w.Connect(entryPoint); err != nil {
 		log.Fatalf("Error: %s\n", err.Error())
 	}
