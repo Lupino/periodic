@@ -13,6 +13,7 @@ type Job struct {
 	Timeout int64  `json:"timeout"`  // Job processing timeout
 	SchedAt int64  `json:"sched_at"` // When to sched the job.
 	RunAt   int64  `json:"run_at"`   // The job is start at
+	Counter int64  `json:"counter"`  // The job run counter
 	Status  string `json:"status"`
 }
 

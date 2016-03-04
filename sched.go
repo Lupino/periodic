@@ -432,7 +432,7 @@ func (sched *Sched) decrStatProc(job driver.Job) {
 	}
 }
 
-func (sched *Sched) schedLater(jobID int64, delay int64) {
+func (sched *Sched) schedLater(jobID, delay, counter int64) {
 	defer sched.notifyJobTimer()
 	defer sched.notifyRevertTimer()
 	defer sched.jobLocker.Unlock()
@@ -446,6 +446,7 @@ func (sched *Sched) schedLater(jobID int64, delay int64) {
 	job.SetReady()
 	var now = time.Now()
 	job.SchedAt = int64(now.Unix()) + delay
+	job.Counter = job.Counter + counter
 	sched.driver.Save(&job)
 	sched.pushJobPQ(job)
 	return

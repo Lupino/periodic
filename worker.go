@@ -102,8 +102,8 @@ func (w *worker) handleCommand(msgID []byte, cmd protocol.Command) (err error) {
 	return
 }
 
-func (w *worker) handleSchedLater(jobID, delay int64) (err error) {
-	w.sched.schedLater(jobID, delay)
+func (w *worker) handleSchedLater(jobID, delay, counter int64) (err error) {
+	w.sched.schedLater(jobID, delay, counter)
 	defer w.locker.Unlock()
 	w.locker.Lock()
 	if _, ok := w.jobQueue[jobID]; ok {
@@ -158,14 +158,18 @@ func (w *worker) handle() {
 			err = w.handleFail(jobID)
 			break
 		case protocol.SCHEDLATER:
-			parts := bytes.SplitN(payload, protocol.NullChar, 2)
-			if len(parts) != 2 {
+			parts := bytes.SplitN(payload, protocol.NullChar, 3)
+			if len(parts) < 2 {
 				log.Printf("Error: invalid format.")
 				break
 			}
 			jobID, _ := strconv.ParseInt(string(parts[0]), 10, 0)
 			delay, _ := strconv.ParseInt(string(parts[1]), 10, 0)
-			err = w.handleSchedLater(jobID, delay)
+			var counter int64
+			if len(parts) == 3 {
+				counter, _ = strconv.ParseInt(string(parts[2]), 10, 0)
+			}
+			err = w.handleSchedLater(jobID, delay, counter)
 			break
 		case protocol.SLEEP:
 			err = w.handleCommand(msgID, protocol.NOOP)
