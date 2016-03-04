@@ -6,20 +6,14 @@ import (
 
 // Job workload.
 type Job struct {
-	ID int64 `json:"job_id"`
-	// The job name, this is unique.
-	Name string `json:"name"`
-	// The job function reffer on worker function
-	Func string `json:"func"`
-	// Job args
-	Args string `json:"workload"`
-	// Job processing timeout
-	Timeout int64 `json:"timeout"`
-	// When to sched the job.
-	SchedAt int64 `json:"sched_at"`
-	// The job is start at
-	RunAt  int64  `json:"run_at"`
-	Status string `json:"status"`
+	ID      int64  `json:"job_id"`
+	Name    string `json:"name"`     // The job name, this is unique.
+	Func    string `json:"func"`     // The job function reffer on worker function
+	Args    string `json:"workload"` // Job args
+	Timeout int64  `json:"timeout"`  // Job processing timeout
+	SchedAt int64  `json:"sched_at"` // When to sched the job.
+	RunAt   int64  `json:"run_at"`   // The job is start at
+	Status  string `json:"status"`
 }
 
 // IsReady check job status ready
