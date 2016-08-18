@@ -29,6 +29,14 @@ func (pq *PriorityQueue) Push(x interface{}) {
 	n := len(*pq)
 	item := x.(*Item)
 	item.Index = n
+
+	for _, o := range *pq {
+		if o.Value == item.Value {
+			o.Priority = item.Priority
+			return
+		}
+	}
+
 	*pq = append(*pq, item)
 }
 
