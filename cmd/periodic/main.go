@@ -6,7 +6,7 @@ import (
 	"github.com/Lupino/periodic/driver"
 	"github.com/Lupino/periodic/driver/leveldb"
 	"github.com/Lupino/periodic/driver/redis"
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 	"log"
 	"os"
 	"os/signal"
@@ -68,8 +68,9 @@ func main() {
 		{
 			Name:  "status",
 			Usage: "Show status",
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				subcmd.ShowStatus(c.GlobalString("H"))
+				return nil
 			},
 		},
 		{
@@ -102,7 +103,7 @@ func main() {
 					Usage: "job sched_later",
 				},
 			},
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				var name = c.String("n")
 				var funcName = c.String("f")
 				var opts = map[string]string{
@@ -118,6 +119,7 @@ func main() {
 				var schedAt = int64(now.Unix()) + int64(delay)
 				opts["schedat"] = strconv.FormatInt(schedAt, 10)
 				subcmd.SubmitJob(c.GlobalString("H"), funcName, name, opts)
+				return nil
 			},
 		},
 		{
@@ -135,7 +137,7 @@ func main() {
 					Usage: "job name",
 				},
 			},
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				var name = c.String("n")
 				var funcName = c.String("f")
 				if len(name) == 0 || len(funcName) == 0 {
@@ -143,6 +145,7 @@ func main() {
 					log.Fatal("Job name and func is require")
 				}
 				subcmd.RemoveJob(c.GlobalString("H"), funcName, name)
+				return nil
 			},
 		},
 		{
@@ -155,13 +158,14 @@ func main() {
 					Usage: "function name",
 				},
 			},
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				Func := c.String("f")
 				if len(Func) == 0 {
 					cli.ShowCommandHelp(c, "drop")
 					log.Fatal("function name is required")
 				}
 				subcmd.DropFunc(c.GlobalString("H"), Func)
+				return nil
 			},
 		},
 		{
@@ -184,7 +188,7 @@ func main() {
 					Usage: "the size of goroutines. (optional)",
 				},
 			},
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				Func := c.String("f")
 				exec := c.String("exec")
 				n := c.Int("n")
@@ -197,6 +201,7 @@ func main() {
 					log.Fatal("command is required")
 				}
 				subcmd.Run(c.GlobalString("H"), Func, exec, n)
+				return nil
 			},
 		},
 		{
@@ -209,8 +214,9 @@ func main() {
 					Usage: "output file name required",
 				},
 			},
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				subcmd.Dump(c.GlobalString("H"), c.String("o"))
+				return nil
 			},
 		},
 		{
@@ -223,12 +229,13 @@ func main() {
 					Usage: "input file name required",
 				},
 			},
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				subcmd.Load(c.GlobalString("H"), c.String("i"))
+				return nil
 			},
 		},
 	}
-	app.Action = func(c *cli.Context) {
+	app.Action = func(c *cli.Context) error {
 		if c.Bool("d") {
 			if c.String("cpuprofile") != "" {
 				f, err := os.Create(c.String("cpuprofile"))
@@ -265,6 +272,7 @@ func main() {
 		} else {
 			cli.ShowAppHelp(c)
 		}
+		return nil
 	}
 
 	app.Run(os.Args)
