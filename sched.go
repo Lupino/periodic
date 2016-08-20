@@ -253,6 +253,10 @@ func (sched *Sched) lessItem() (lessItem *queue.Item) {
 			continue
 		}
 		pq := sched.jobPQ[Func]
+		old := pq.Get(item.Value)
+		if old != nil {
+			heap.Remove(pq, old.Index)
+		}
 		heap.Push(pq, item)
 	}
 	sched.cacheItem = lessItem
@@ -477,6 +481,10 @@ func (sched *Sched) pushJobPQ(job driver.Job) bool {
 			sched.jobPQ[job.Func] = pq
 			heap.Init(pq)
 		}
+		old := pq.Get(item.Value)
+		if old != nil {
+			heap.Remove(pq, old.Index)
+		}
 		heap.Push(pq, item)
 		return true
 	}
@@ -494,6 +502,10 @@ func (sched *Sched) pushRevertPQ(job driver.Job) {
 		item := &queue.Item{
 			Value:    job.ID,
 			Priority: runAt + job.Timeout,
+		}
+		old := sched.revertPQ.Get(item.Value)
+		if old != nil {
+			heap.Remove(&sched.revertPQ, old.Index)
 		}
 		heap.Push(&sched.revertPQ, item)
 	}

@@ -30,13 +30,6 @@ func (pq *PriorityQueue) Push(x interface{}) {
 	item := x.(*Item)
 	item.Index = n
 
-	for _, o := range *pq {
-		if o.Value == item.Value {
-			o.Priority = item.Priority
-			return
-		}
-	}
-
 	*pq = append(*pq, item)
 }
 
@@ -48,4 +41,14 @@ func (pq *PriorityQueue) Pop() interface{} {
 	item.Index = -1 // for safety
 	*pq = old[0 : n-1]
 	return item
+}
+
+// Get from PriorityQueue
+func (pq *PriorityQueue) Get(value int64) *Item {
+	for _, o := range *pq {
+		if o.Value == value {
+			return o
+		}
+	}
+	return nil
 }
