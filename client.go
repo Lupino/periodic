@@ -134,6 +134,8 @@ func (c *client) handleStatus(msgID []byte) (err error) {
 	buf := bytes.NewBuffer(nil)
 	buf.Write(msgID)
 	buf.Write(protocol.NullChar)
+	defer c.sched.funcLocker.Unlock()
+	c.sched.funcLocker.Lock()
 	for _, stat := range c.sched.stats {
 		buf.WriteString(stat.String())
 		buf.WriteString("\n")
@@ -144,11 +146,14 @@ func (c *client) handleStatus(msgID []byte) (err error) {
 
 func (c *client) handleDropFunc(msgID []byte, payload []byte) (err error) {
 	Func := string(payload)
-	stat, ok := c.sched.stats[Func]
 	sched := c.sched
 	defer sched.notifyJobTimer()
 	defer sched.jobLocker.Unlock()
 	sched.jobLocker.Lock()
+
+	defer sched.funcLocker.Unlock()
+	sched.funcLocker.Lock()
+	stat, ok := sched.stats[Func]
 	if ok && stat.Worker.Int() == 0 {
 		iter := sched.driver.NewIterator(payload)
 		var deleteJob = make([]int64, 0)
@@ -163,8 +168,8 @@ func (c *client) handleDropFunc(msgID []byte, payload []byte) (err error) {
 		for _, jobID := range deleteJob {
 			sched.driver.Delete(jobID)
 		}
-		delete(c.sched.stats, Func)
-		delete(c.sched.jobPQ, Func)
+		delete(sched.stats, Func)
+		delete(sched.jobPQ, Func)
 	}
 	err = c.handleCommand(msgID, protocol.SUCCESS)
 	return

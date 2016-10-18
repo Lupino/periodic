@@ -215,6 +215,7 @@ func (sched *Sched) lessItem() (lessItem *queue.Item) {
 		return sched.cacheItem
 	}
 	maybeItem := make(map[string]*queue.Item)
+	sched.funcLocker.Lock()
 	for Func, stat := range sched.stats {
 		if stat.Worker.Int() == 0 {
 			continue
@@ -227,8 +228,8 @@ func (sched *Sched) lessItem() (lessItem *queue.Item) {
 		item := heap.Pop(pq).(*queue.Item)
 
 		maybeItem[Func] = item
-
 	}
+	sched.funcLocker.Unlock()
 
 	if len(maybeItem) == 0 {
 		return nil
@@ -326,14 +327,13 @@ func (sched *Sched) handleRevertPQ() {
 		}
 		sched.PQLocker.Lock()
 		pqLen := sched.revertPQ.Len()
-		sched.PQLocker.Unlock()
 		if pqLen == 0 {
+			sched.PQLocker.Unlock()
 			sched.resetRevertTimer(time.Minute)
 			current = <-sched.revTimer.C
 			continue
 		}
 
-		sched.PQLocker.Lock()
 		item := heap.Pop(&sched.revertPQ).(*queue.Item)
 		sched.PQLocker.Unlock()
 

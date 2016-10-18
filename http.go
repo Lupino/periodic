@@ -149,6 +149,8 @@ type sstat struct {
 }
 
 func (c *httpClient) handleStatus(funcName string) {
+	defer c.sched.funcLocker.Unlock()
+	c.sched.funcLocker.Lock()
 	var stats = make(map[string]sstat)
 	for _, st := range c.sched.stats {
 		stats[st.Name] = sstat{
@@ -175,11 +177,13 @@ func (c *httpClient) handleDropFunc(funcName string) {
 		c.sendErrResponse(errors.New("func is required"))
 		return
 	}
-	stat, ok := c.sched.stats[funcName]
 	sched := c.sched
 	defer sched.notifyJobTimer()
 	defer sched.jobLocker.Unlock()
 	sched.jobLocker.Lock()
+	defer sched.funcLocker.Unlock()
+	sched.funcLocker.Lock()
+	stat, ok := sched.stats[funcName]
 	if ok && stat.Worker.Int() == 0 {
 		iter := sched.driver.NewIterator([]byte(funcName))
 		var deleteJob = make([]int64, 0)
@@ -194,8 +198,8 @@ func (c *httpClient) handleDropFunc(funcName string) {
 		for _, jobID := range deleteJob {
 			sched.driver.Delete(jobID)
 		}
-		delete(c.sched.stats, funcName)
-		delete(c.sched.jobPQ, funcName)
+		delete(sched.stats, funcName)
+		delete(sched.jobPQ, funcName)
 	}
 	c.sendResponse("200 OK", []byte("{\"msg\": \""+protocol.SUCCESS.String()+"\"}"))
 	return
