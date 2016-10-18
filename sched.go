@@ -289,7 +289,6 @@ func (sched *Sched) handleJobPQ() {
 
 		if err != nil {
 			sched.clearCacheItem()
-			log.Printf("handleJobPQ error job: %d %v\n", lessItem.Value, err)
 			continue
 		}
 
@@ -346,7 +345,6 @@ func (sched *Sched) handleRevertPQ() {
 		revertJob, err := sched.driver.Get(item.Value)
 
 		if err != nil {
-			log.Printf("handleRevertPQ error: job: %d %v\n", item.Value, err)
 			continue
 		}
 
