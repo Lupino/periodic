@@ -38,7 +38,7 @@ func MakeHeader(data []byte) ([]byte, error) {
 	length := uint32(len(data))
 
 	if length > 0x7fffffff {
-		return nil, errors.New("Data to large")
+		return nil, errors.New("Data too large")
 	}
 
 	header[0] = byte((length >> 24) & 0xff)
