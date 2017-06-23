@@ -220,6 +220,9 @@ func (sched *Sched) lessItem() (lessItem *queue.Item) {
 		if stat.Worker.Int() == 0 {
 			continue
 		}
+		if _, err := sched.grabQueue.get(Func); err != nil {
+			continue
+		}
 		pq, ok := sched.jobPQ[Func]
 		if !ok || pq.Len() == 0 {
 			continue
