@@ -120,6 +120,7 @@ func (sched *Sched) resetRevertTimer(d time.Duration) {
 func (sched *Sched) handleConnection(conn net.Conn) {
 	c := protocol.NewServerConn(conn)
 	payload, err := c.Receive()
+	c.Send([]byte("OK"))
 	if len(payload) == 4 {
 		if bytes.Contains([]byte("GET ,POST,DELETE,PUT "), payload) {
 			httpclient := newHTTPClient(sched, c)
