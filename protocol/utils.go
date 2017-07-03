@@ -17,15 +17,25 @@ func ParseCommand(payload []byte) (msgID []byte, cmd Command, data []byte) {
 	if partSize <= 1 {
 		panic(err)
 	}
+
 	msgID = parts[0]
-	if partSize == 2 && len(parts[1]) != 1 {
-		cmd = UNKNOWN
-		data = parts[1]
-	} else {
-		cmd = Command(parts[1][0])
-		if partSize == 3 && len(parts[2]) > 0 {
+	cmd = UNKNOWN
+
+	if partSize == 2 {
+		if len(parts[1]) != 1 {
+			data = parts[1]
+		} else {
+			cmd = Command(parts[1][0])
+		}
+	}
+	if partSize == 3 {
+		if len(parts[1]) != 1 {
+			data = bytes.Join([][]byte{parts[1], parts[2]}, NullChar)
+		} else {
+			cmd = Command(parts[1][0])
 			data = parts[2]
 		}
+
 	}
 	return
 }
