@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"container/heap"
 	"github.com/Lupino/periodic/driver"
-	"github.com/Lupino/periodic/protocol"
+	"github.com/Lupino/go-periodic/protocol"
 	"github.com/Lupino/periodic/queue"
 	"github.com/Lupino/periodic/stat"
 	"github.com/felixge/tcpkeepalive"

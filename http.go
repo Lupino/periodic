@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/Lupino/periodic/driver"
-	"github.com/Lupino/periodic/protocol"
+	"github.com/Lupino/go-periodic/protocol"
 	"net"
 	"net/http"
 	"strconv"
