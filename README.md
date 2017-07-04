@@ -85,12 +85,14 @@ Quick start
 
 ### Install
 
-    go get -v github.com/Lupino/periodic/cmd/periodic
+    go get -v github.com/Lupino/periodic/cmd/periodicd
+    go get -v github.com/Lupino/go-periodic/cmd/periodic
+    periodicd -h
     periodic -h
 
 ### Start periodic server
 
-    $ periodic -d
+    $ periodicd
 
 ### A worker to ls a dirctory every five second.
 
