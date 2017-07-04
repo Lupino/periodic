@@ -2,7 +2,6 @@ package periodic
 
 import (
 	"bytes"
-	"encoding/json"
 	"github.com/Lupino/periodic/driver"
 	"github.com/Lupino/periodic/protocol"
 	"io"
@@ -95,7 +94,7 @@ func (c *client) handleSubmitJob(msgID []byte, payload []byte) (err error) {
 	var sched = c.sched
 	defer sched.jobLocker.Unlock()
 	sched.jobLocker.Lock()
-	job, e = driver.NewJob(payload)
+	job, e = driver.Decode(payload)
 	if e != nil {
 		err = conn.Send([]byte(e.Error()))
 		return
@@ -182,7 +181,7 @@ func (c *client) handleRemoveJob(msgID, payload []byte) (err error) {
 	var sched = c.sched
 	defer sched.jobLocker.Unlock()
 	sched.jobLocker.Lock()
-	job, e = driver.NewJob(payload)
+	job, e = driver.Decode(payload)
 	if e != nil {
 		err = conn.Send([]byte(e.Error()))
 		return
@@ -211,9 +210,6 @@ func (c *client) handleRemoveJob(msgID, payload []byte) (err error) {
 
 func (c *client) handleDump(msgID []byte) (err error) {
 	var sched = c.sched
-	var batchSize = 100
-	var offset = 0
-	var jobList []driver.Job
 	iter := sched.driver.NewIterator(nil)
 	for {
 		if !iter.Next() {
@@ -223,29 +219,16 @@ func (c *client) handleDump(msgID []byte) (err error) {
 		if job.Name == "" {
 			continue
 		}
-
-		if offset == 0 {
-			jobList = make([]driver.Job, 0)
-		}
-
-		jobList = append(jobList, job)
-		offset = offset + 1
-
-		if offset == batchSize {
-			offset = 0
-			if err = c.handleJobList(msgID, jobList); err != nil {
-				return
-			}
+		buffer := bytes.NewBuffer(nil)
+		buffer.Write(msgID)
+		buffer.Write(protocol.NullChar)
+		buffer.Write(job.Encode())
+		if err = c.conn.Send(buffer.Bytes()); err != nil {
+			return
 		}
 	}
 
 	iter.Close()
-
-	if offset > 0 {
-		if err = c.handleJobList(msgID, jobList); err != nil {
-			return
-		}
-	}
 
 	buffer := bytes.NewBuffer(nil)
 	buffer.Write(msgID)
@@ -255,44 +238,21 @@ func (c *client) handleDump(msgID []byte) (err error) {
 	return
 }
 
-func (c *client) handleJobList(msgID []byte, jobList []driver.Job) (err error) {
-	buffer := bytes.NewBuffer(nil)
-	buffer.Write(msgID)
-	buffer.Write(protocol.NullChar)
-	data, _ := json.Marshal(map[string][]driver.Job{"jobs": jobList})
-	buffer.Write(data)
-	err = c.conn.Send(buffer.Bytes())
-	return
-}
-
 func (c *client) handleLoad(msgID, payload []byte) (err error) {
-	var packed map[string][]driver.Job
-	if err = json.Unmarshal(payload, &packed); err != nil {
+	var sched = c.sched
+	var job driver.Job
+
+	if job, err = driver.Decode(payload); err != nil {
+		return
+	}
+	job.SetReady()
+
+	if err = sched.driver.Save(&job, true); err != nil {
 		return
 	}
 
-	var jobList = packed["jobs"]
-
-	var sched = c.sched
-	for _, job := range jobList {
-		if job.Name == "" || job.Func == "" {
-			continue
-		}
-
-		runAt := job.RunAt
-		if runAt < job.SchedAt {
-			runAt = job.SchedAt
-		}
-
-		job.SetReady()
-
-		if err = sched.driver.Save(&job, true); err != nil {
-			return
-		}
-
-		sched.incrStatJob(job)
-		sched.pushJobPQ(job)
-	}
+	sched.incrStatJob(job)
+	sched.pushJobPQ(job)
 	sched.notifyJobTimer()
 	return
 }

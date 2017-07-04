@@ -1,7 +1,11 @@
 package driver
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"github.com/Lupino/go-periodic/protocol"
+	"strconv"
 )
 
 // Job workload.
@@ -47,4 +51,48 @@ func NewJob(payload []byte) (job Job, err error) {
 func (job Job) Bytes() (data []byte) {
 	data, _ = json.Marshal(job)
 	return
+}
+
+// Decode create a job from bytes
+func Decode(payload []byte) (job Job, err error) {
+	parts := bytes.SplitN(payload, protocol.NullChar, 5)
+	partSize := len(parts)
+	if partSize < 2 {
+		err = fmt.Errorf("InvalID %v\n", payload)
+		return
+	}
+	job.Func = string(parts[0])
+	job.Name = string(parts[1])
+	if partSize > 2 {
+		job.SchedAt, _ = strconv.ParseInt(string(parts[2]), 10, 0)
+	}
+	if partSize > 3 {
+		job.Counter, _ = strconv.ParseInt(string(parts[3]), 10, 0)
+	}
+	if partSize > 4 {
+		job.Args = string(parts[4])
+	}
+	return
+}
+
+// Encode job to bytes
+func (job Job) Encode() []byte {
+	buf := bytes.NewBuffer(nil)
+	buf.WriteString(job.Func)
+	buf.Write(protocol.NullChar)
+	buf.WriteString(job.Name)
+	argc := len(job.Args)
+	if argc > 0 || job.SchedAt > 0 || job.Counter > 0 {
+		buf.Write(protocol.NullChar)
+		buf.WriteString(strconv.FormatInt(job.SchedAt, 10))
+	}
+	if argc > 0 || job.Counter > 0 {
+		buf.Write(protocol.NullChar)
+		buf.WriteString(strconv.FormatInt(job.Counter, 10))
+	}
+	if argc > 0 {
+		buf.Write(protocol.NullChar)
+		buf.WriteString(job.Args)
+	}
+	return buf.Bytes()
 }

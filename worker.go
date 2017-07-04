@@ -45,7 +45,7 @@ func (w *worker) handleJobAssign(msgID []byte, job driver.Job) (err error) {
 	buf.Write(protocol.NullChar)
 	buf.WriteString(strconv.FormatInt(job.ID, 10))
 	buf.Write(protocol.NullChar)
-	buf.Write(job.Bytes())
+	buf.Write(job.Encode())
 	err = w.conn.Send(buf.Bytes())
 	return
 }
