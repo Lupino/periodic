@@ -2,11 +2,11 @@ package periodic
 
 import (
 	"bytes"
-	"github.com/Lupino/periodic/driver"
+	"encoding/binary"
 	"github.com/Lupino/go-periodic/protocol"
+	"github.com/Lupino/periodic/driver"
 	"io"
 	"log"
-	"strconv"
 	"sync"
 )
 
@@ -17,6 +17,21 @@ type worker struct {
 	alive    bool
 	funcs    []string
 	locker   *sync.Mutex
+}
+
+func encodeJobHandle(id int64) []byte {
+	h64 := make([]byte, 8)
+	binary.BigEndian.PutUint64(h64, uint64(id))
+
+	buf := bytes.NewBuffer(nil)
+	buf.WriteByte(byte(8))
+	buf.Write(h64)
+	return buf.Bytes()
+}
+
+func decodeJobHandle(data []byte) int64 {
+	h64 := data[1:9]
+	return int64(binary.BigEndian.Uint64(h64))
 }
 
 func newWorker(sched *Sched, conn protocol.Conn) (w *worker) {
@@ -40,11 +55,8 @@ func (w *worker) handleJobAssign(msgID []byte, job driver.Job) (err error) {
 	w.jobQueue[job.ID] = job
 	buf := bytes.NewBuffer(nil)
 	buf.Write(msgID)
-	buf.Write(protocol.NullChar)
 	buf.Write(protocol.JOBASSIGN.Bytes())
-	buf.Write(protocol.NullChar)
-	buf.WriteString(strconv.FormatInt(job.ID, 10))
-	buf.Write(protocol.NullChar)
+	buf.Write(encodeJobHandle(job.ID))
 	buf.Write(job.Encode())
 	err = w.conn.Send(buf.Bytes())
 	return
@@ -96,7 +108,6 @@ func (w *worker) handleFail(jobID int64) (err error) {
 func (w *worker) handleCommand(msgID []byte, cmd protocol.Command) (err error) {
 	buf := bytes.NewBuffer(nil)
 	buf.Write(msgID)
-	buf.Write(protocol.NullChar)
 	buf.Write(cmd.Bytes())
 	err = w.conn.Send(buf.Bytes())
 	return
@@ -150,25 +161,21 @@ func (w *worker) handle() {
 			err = w.handleGrabJob(msgID)
 			break
 		case protocol.WORKDONE:
-			jobID, _ := strconv.ParseInt(string(payload), 10, 0)
+			jobID := decodeJobHandle(payload)
 			err = w.handleDone(jobID)
 			break
 		case protocol.WORKFAIL:
-			jobID, _ := strconv.ParseInt(string(payload), 10, 0)
+			jobID := decodeJobHandle(payload)
 			err = w.handleFail(jobID)
 			break
 		case protocol.SCHEDLATER:
-			parts := bytes.SplitN(payload, protocol.NullChar, 3)
-			if len(parts) < 2 {
-				log.Printf("Error: invalid format.")
-				break
-			}
-			jobID, _ := strconv.ParseInt(string(parts[0]), 10, 0)
-			delay, _ := strconv.ParseInt(string(parts[1]), 10, 0)
-			var counter int64
-			if len(parts) == 3 {
-				counter, _ = strconv.ParseInt(string(parts[2]), 10, 0)
-			}
+			jh := payload[0:9]
+			jobID := decodeJobHandle(jh)
+			h64 := payload[9:17]
+			delay := int64(binary.BigEndian.Uint64(h64))
+
+			h16 := payload[17:19]
+			counter := int64(binary.BigEndian.Uint16(h16))
 			err = w.handleSchedLater(jobID, delay, counter)
 			break
 		case protocol.SLEEP:

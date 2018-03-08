@@ -2,8 +2,8 @@ package periodic
 
 import (
 	"bytes"
-	"github.com/Lupino/periodic/driver"
 	"github.com/Lupino/go-periodic/protocol"
+	"github.com/Lupino/periodic/driver"
 	"io"
 	"log"
 )
@@ -59,12 +59,6 @@ func (c *client) handle() {
 		case protocol.REMOVEJOB:
 			err = c.handleRemoveJob(msgID, payload)
 			break
-		case protocol.DUMP:
-			err = c.handleDump(msgID)
-			break
-		case protocol.LOAD:
-			err = c.handleLoad(msgID, payload)
-			break
 		default:
 			err = c.handleCommand(msgID, protocol.UNKNOWN)
 			break
@@ -81,7 +75,6 @@ func (c *client) handle() {
 func (c *client) handleCommand(msgID []byte, cmd protocol.Command) (err error) {
 	buf := bytes.NewBuffer(nil)
 	buf.Write(msgID)
-	buf.Write(protocol.NullChar)
 	buf.Write(cmd.Bytes())
 	err = c.conn.Send(buf.Bytes())
 	return
@@ -132,7 +125,6 @@ func (c *client) handleSubmitJob(msgID []byte, payload []byte) (err error) {
 func (c *client) handleStatus(msgID []byte) (err error) {
 	buf := bytes.NewBuffer(nil)
 	buf.Write(msgID)
-	buf.Write(protocol.NullChar)
 	defer c.sched.funcLocker.Unlock()
 	c.sched.funcLocker.Lock()
 	for _, stat := range c.sched.stats {
@@ -205,54 +197,5 @@ func (c *client) handleRemoveJob(msgID, payload []byte) (err error) {
 	} else {
 		err = c.handleCommand(msgID, protocol.SUCCESS)
 	}
-	return
-}
-
-func (c *client) handleDump(msgID []byte) (err error) {
-	var sched = c.sched
-	iter := sched.driver.NewIterator(nil)
-	for {
-		if !iter.Next() {
-			break
-		}
-		job := iter.Value()
-		if job.Name == "" {
-			continue
-		}
-		buffer := bytes.NewBuffer(nil)
-		buffer.Write(msgID)
-		buffer.Write(protocol.NullChar)
-		buffer.Write(job.Encode())
-		if err = c.conn.Send(buffer.Bytes()); err != nil {
-			return
-		}
-	}
-
-	iter.Close()
-
-	buffer := bytes.NewBuffer(nil)
-	buffer.Write(msgID)
-	buffer.Write(protocol.NullChar)
-	buffer.WriteString("EOF")
-	err = c.conn.Send(buffer.Bytes())
-	return
-}
-
-func (c *client) handleLoad(msgID, payload []byte) (err error) {
-	var sched = c.sched
-	var job driver.Job
-
-	if job, err = driver.Decode(payload); err != nil {
-		return
-	}
-	job.SetReady()
-
-	if err = sched.driver.Save(&job, true); err != nil {
-		return
-	}
-
-	sched.incrStatJob(job)
-	sched.pushJobPQ(job)
-	sched.notifyJobTimer()
 	return
 }
