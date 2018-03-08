@@ -23,5 +23,5 @@ func NewFuncStat(name string) *FuncStat {
 }
 
 func (stat FuncStat) String() string {
-	return fmt.Sprintf("%s,%s,%s,%s", stat.Name, stat.Worker, stat.Job, stat.Processing)
+	return fmt.Sprintf("%s,%s,%s,%s,0", stat.Name, stat.Worker, stat.Job, stat.Processing)
 }
