@@ -185,10 +185,10 @@ func (w *worker) handle() {
 			err = w.handleCommand(msgID, protocol.PONG)
 			break
 		case protocol.CANDO:
-			err = w.handleCanDo(string(payload))
+			err = w.handleCanDo(string(payload[1:]))
 			break
 		case protocol.CANTDO:
-			err = w.handleCanNoDo(string(payload))
+			err = w.handleCanNoDo(string(payload[1:]))
 			break
 		default:
 			err = w.handleCommand(msgID, protocol.UNKNOWN)

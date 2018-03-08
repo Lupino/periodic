@@ -136,7 +136,7 @@ func (c *client) handleStatus(msgID []byte) (err error) {
 }
 
 func (c *client) handleDropFunc(msgID []byte, payload []byte) (err error) {
-	Func := string(payload)
+	Func := string(payload[1:])
 	sched := c.sched
 	defer sched.notifyJobTimer()
 	defer sched.jobLocker.Unlock()
